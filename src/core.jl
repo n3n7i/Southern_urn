@@ -2,75 +2,106 @@
 ## Swarm Tree imp.
 
 ### KNN adjacency matrix  (dead param rx)
-function ws_adj(items, rx = 0.1, px = 10, xf = xL5_dist)
+
+function ww_adj(items, px = 10, xf = xL5_dist)
+
   if(px > size(items,1))
     px = size(items,1);
     end;
+
   n = size(items,1);
-  adj = falses(n, n);
+  adj = zeros(n, n);
   adj2 = zeros(n);
+
   for iter = 1:n
     adj2 = xf(items[iter,:], items);
     rp = sortperm(adj2[:]);
-#    rm = minimum(adj2);
-  #  println("$(rp[1:5])");
-#    adj[iter,:] = adj2 .<= (rm + (maximum(adj2) - rm) * rx);
-    adj[iter, rp[1:px]] = true; 
-    adj[iter, iter] = false;
+
+    adj[iter, vec(rp[1:px])] .= adj2[vec(rp[1:px])]; 
+
     end;
-  return ((adj .+ adj') .> 0);
+  return adj;
   end;
 
 
-### Swarm Core
 
-function unigrap2(wdata, adj, iid, iw = 10, lim = 990)
+function adj_tree()
+
+  end;
+
+
+function unigrap2(wdata, adj, iid, iw = 0, lim = 990)
+
 n = size(wdata,1);
+
 cvec = trues(n);
 c2vec = falses(n);
-p = zeros(n);
-w = ones(n) .* 1e7;
-s = ones(n) .* 1e12;
-t = zeros(n);
-r = zeros(n);
+
+p = zeros(Int, n);   ##position
+w = ones(n) .* 1e7;  ##weight
+s = ones(n) .* 1e12;  ##score?
+t = zeros(Int, n);  ##trace
+r = zeros(Int, n);  ##root
+
 iter = 1;
-p[iid] = iter;
-w[iid] = wdata[iid] .+ iw;
-s[iid] = w[iid];
-r[iid] = 1:length(iid); ## Ok, iid is a vector
+
+p[iid] .= iter;
+w[iid] .= wdata[iid] .+ iw;
+s[iid] .= w[iid];
+r[iid] .= 1:length(iid); ## Ok, iid is a vector
+
 nv = 1:n;
 subiter = 1;
 c2vec[1] = true
+
 while (sum(c2vec) > 0)
+
   iter += 1;
-  c2vec[:] = false;
+  c2vec[:] .= false;
   subiter = 0;
+
   for itern = iid
     subiter +=1;
     xvec = adj[itern, :][:];
   #  print(size(xvec));
+
     qval = wdata[xvec] .+ w[itern];
     q2val = qval .+ s[itern];
-    nvec = (s[xvec] .> q2val) .+ (p[xvec] .!= 1) .+ (w[xvec] .> qval) .== 3;
+
+#    nvec = (s[xvec] .> q2val) .+ (p[xvec] .!= 1) .+ (w[xvec] .> qval) .== 3;
+
+    nvec = (p[xvec] .== 0) .| ((w[xvec] .> qval) .& (p[xvec].==iter)); ## .& 
+   
     xvec[xvec] = nvec;
   #  print("nv-", sum(nvec), " ");
+
     s[xvec] = q2val[nvec];
+
     w[xvec] = qval[nvec]; ##weight integ
-    p[xvec] = iter; ##depth 
-    t[xvec] = itern; ##prev
-    r[xvec] = r[itern]; ##root
-    c2vec[xvec] = true;
+
+    p[xvec] .= iter; ##depth 
+
+    t[xvec] .= itern; ##prev
+    r[xvec] .= r[itern]; ##root
+
+    c2vec[xvec] .= true;
+
    # print("c2-",sum(c2vec), " ");
+
     end;
+
 ##  print(subiter, " ");
-  cvec[iid] = false;
+  cvec[iid] .= false;
+
   iid = nv[c2vec];
+
   if(sum(c2vec) == 0)
 ##    println("\n:", iter);
     iter = lim +1;
     end;
 #  print(iid);
   end;
+
 return([s w p t r]);
 end;
 
